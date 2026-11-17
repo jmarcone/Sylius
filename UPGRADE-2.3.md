@@ -13,6 +13,20 @@ The following methods have been deprecated and will be removed together with the
 
 `Sylius\Component\Core\Model\PromotionInterface` and `Sylius\Component\Core\Model\PromotionCouponInterface` will no longer extend `Sylius\Resource\Model\VersionedInterface` in Sylius 3.0.
 
+## Taxation
+
+Tax rates defined for a zone consisting of other zones (a zone of type `zone`) are now applied
+([#10611](https://github.com/Sylius/Sylius/issues/10611)). The tax zone of an order is still the single best matching
+zone of the taxation address, which is a province or country zone. When no tax rate of the tax category is defined for
+that zone, Sylius now also looks for one in the zones that consist of it (scope `tax` or `all`): the nearest zones
+first and, on the same level, the zones with the higher priority first. A rate defined for the matched zone itself
+still takes precedence. Until now such orders got no tax at all for the affected items, so totals change for stores
+that defined tax rates on zones consisting of other zones.
+
+This is done by the new `Sylius\Component\Core\Taxation\Resolver\ZoneHierarchyAwareTaxRateResolver`, registered as
+`sylius.resolver.tax_rate.zone_hierarchy_aware`, which decorates `sylius.resolver.tax_rate`. If you have decorated or
+replaced `sylius.resolver.tax_rate` yourself, check that your service still works together with this decorator.
+
 # UPGRADE FROM `2.3.1` TO `2.3.2`
 
 This is a **security release**. Updating is strongly recommended.

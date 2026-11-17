@@ -17,6 +17,7 @@ use Sylius\Bundle\CoreBundle\Taxation\Strategy\TaxCalculationStrategy;
 use Sylius\Component\Core\Taxation\Applicator\OrderItemsTaxesApplicator;
 use Sylius\Component\Core\Taxation\Applicator\OrderItemUnitsTaxesApplicator;
 use Sylius\Component\Core\Taxation\Applicator\OrderShipmentTaxesApplicator;
+use Sylius\Component\Core\Taxation\Resolver\ZoneHierarchyAwareTaxRateResolver;
 use Sylius\Component\Core\Taxation\Strategy\TaxCalculationStrategyInterface;
 use Sylius\Component\Registry\PrioritizedServiceRegistry;
 
@@ -31,6 +32,15 @@ return static function (ContainerConfigurator $container) {
         ->args([
             '%sylius.tax_calculation_strategy.interface%',
             'Tax calculation strategy',
+        ])
+    ;
+
+    $services
+        ->set('sylius.resolver.tax_rate.zone_hierarchy_aware', ZoneHierarchyAwareTaxRateResolver::class)
+        ->decorate('sylius.resolver.tax_rate')
+        ->args([
+            service('sylius.resolver.tax_rate.zone_hierarchy_aware.inner'),
+            service('sylius.repository.zone'),
         ])
     ;
 
