@@ -19,6 +19,7 @@ use Sylius\Component\Addressing\Factory\ZoneFactoryInterface;
 use Sylius\Component\Addressing\Model\CountryInterface;
 use Sylius\Component\Addressing\Model\ProvinceInterface;
 use Sylius\Component\Addressing\Model\ZoneInterface;
+use Sylius\Resource\Doctrine\Persistence\RepositoryInterface;
 use Sylius\Resource\Factory\FactoryInterface;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Intl\Countries;
@@ -30,6 +31,9 @@ class GeographicalFixture extends AbstractFixture
      * @param FactoryInterface<CountryInterface> $countryFactory
      * @param FactoryInterface<ProvinceInterface> $provinceFactory
      * @param ZoneFactoryInterface<ZoneInterface> $zoneFactory
+     * @param RepositoryInterface<CountryInterface>|null $countryRepository
+     * @param RepositoryInterface<ProvinceInterface>|null $provinceRepository
+     * @param RepositoryInterface<ZoneInterface>|null $zoneRepository
      */
     public function __construct(
         private FactoryInterface $countryFactory,
@@ -38,7 +42,42 @@ class GeographicalFixture extends AbstractFixture
         private ObjectManager $provinceManager,
         private ZoneFactoryInterface $zoneFactory,
         private ObjectManager $zoneManager,
+        private ?RepositoryInterface $countryRepository = null,
+        private ?RepositoryInterface $provinceRepository = null,
+        private ?RepositoryInterface $zoneRepository = null,
     ) {
+        if (null === $this->countryRepository) {
+            trigger_deprecation(
+                'sylius/core-bundle',
+                '2.3',
+                'Not passing a "%s" as "%s" to "%s" is deprecated and will be required in Sylius 3.0.',
+                RepositoryInterface::class,
+                '$countryRepository',
+                self::class,
+            );
+        }
+
+        if (null === $this->provinceRepository) {
+            trigger_deprecation(
+                'sylius/core-bundle',
+                '2.3',
+                'Not passing a "%s" as "%s" to "%s" is deprecated and will be required in Sylius 3.0.',
+                RepositoryInterface::class,
+                '$provinceRepository',
+                self::class,
+            );
+        }
+
+        if (null === $this->zoneRepository) {
+            trigger_deprecation(
+                'sylius/core-bundle',
+                '2.3',
+                'Not passing a "%s" as "%s" to "%s" is deprecated and will be required in Sylius 3.0.',
+                RepositoryInterface::class,
+                '$zoneRepository',
+                self::class,
+            );
+        }
     }
 
     public function load(array $options): void
@@ -121,20 +160,25 @@ class GeographicalFixture extends AbstractFixture
     {
         $countries = [];
         foreach ($countriesCodes as $countryCode) {
-            /** @var CountryInterface $country */
-            $country = $this->countryFactory->createNew();
-            $country->enable();
-            $country->setCode($countryCode);
+            $country = $this->findCountry($countryCode);
 
-            $this->countryManager->persist($country);
+            if (null === $country) {
+                /** @var CountryInterface $country */
+                $country = $this->countryFactory->createNew();
+                $country->enable();
+                $country->setCode($countryCode);
+
+                $this->countryManager->persist($country);
+            }
 
             $countries[$countryCode] = $country;
         }
 
         foreach ($countriesProvinces as $countryCode => $provinces) {
-            Assert::keyExists($countries, $countryCode, sprintf('Cannot create provinces for unexisting country "%s"!', $countryCode));
+            $country = $countries[$countryCode] ?? $this->findCountry($countryCode);
+            Assert::notNull($country, sprintf('Cannot create provinces for unexisting country "%s"!', $countryCode));
 
-            $this->loadProvincesForCountry($provinces, $countries[$countryCode]);
+            $this->loadProvincesForCountry($provinces, $country);
         }
     }
 
@@ -176,7 +220,15 @@ class GeographicalFixture extends AbstractFixture
     /** @param array<string, string> $provinces */
     private function loadProvincesForCountry(array $provinces, CountryInterface $country): void
     {
+        $existingProvincesCodes = $country->getProvinces()->map(
+            fn (ProvinceInterface $province): ?string => $province->getCode(),
+        )->toArray();
+
         foreach ($provinces as $provinceCode => $provinceName) {
+            if (in_array($provinceCode, $existingProvincesCodes, true)) {
+                continue;
+            }
+
             /** @var ProvinceInterface $province */
             $province = $this->provinceFactory->createNew();
 
@@ -228,7 +280,7 @@ class GeographicalFixture extends AbstractFixture
     {
         $memberValidators = [
             ZoneInterface::TYPE_COUNTRY => function (string $countryCode) use ($options): void {
-                if (in_array($countryCode, $options['countries'], true)) {
+                if (in_array($countryCode, $options['countries'], true) || null !== $this->findCountry($countryCode)) {
                     return;
                 }
 
@@ -248,14 +300,18 @@ class GeographicalFixture extends AbstractFixture
                     $foundProvinces = array_merge($foundProvinces, array_keys($provinces));
                 }
 
+                if (null !== $this->provinceRepository?->findOneBy(['code' => $provinceCode])) {
+                    return;
+                }
+
                 throw new \InvalidArgumentException(sprintf(
                     'Could not find province "%s", defined ones are: %s!',
                     $provinceCode,
-                    implode(', ', $options['provinces']),
+                    implode(', ', $foundProvinces),
                 ));
             },
             ZoneInterface::TYPE_ZONE => function (string $zoneCode) use ($options): void {
-                if (isset($options['zones'][$zoneCode])) {
+                if (isset($options['zones'][$zoneCode]) || null !== $this->zoneRepository?->findOneBy(['code' => $zoneCode])) {
                     return;
                 }
 
@@ -275,5 +331,10 @@ class GeographicalFixture extends AbstractFixture
                 $memberValidators[$zoneType]($zoneMember);
             }
         };
+    }
+
+    private function findCountry(string $countryCode): ?CountryInterface
+    {
+        return $this->countryRepository?->findOneBy(['code' => $countryCode]);
     }
 }

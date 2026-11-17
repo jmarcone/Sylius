@@ -15,10 +15,12 @@ namespace Tests\Sylius\Bundle\CoreBundle\Fixture;
 
 use Doctrine\Persistence\ObjectManager;
 use Matthias\SymfonyConfigTest\PhpUnit\ConfigurationTestCaseTrait;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Sylius\Bundle\CoreBundle\Fixture\GeographicalFixture;
 use Sylius\Component\Addressing\Factory\ZoneFactoryInterface;
+use Sylius\Resource\Doctrine\Persistence\RepositoryInterface;
 use Sylius\Resource\Factory\FactoryInterface;
 use Symfony\Component\Intl\Countries;
 
@@ -153,6 +155,29 @@ final class GeographicalFixtureTest extends TestCase
         );
     }
 
+    #[Test]
+    #[IgnoreDeprecations]
+    public function not_passing_the_repositories_is_deprecated(): void
+    {
+        foreach (['$countryRepository', '$provinceRepository', '$zoneRepository'] as $argumentName) {
+            $this->expectUserDeprecationMessage(sprintf(
+                'Since sylius/core-bundle 2.3: Not passing a "%s" as "%s" to "%s" is deprecated and will be required in Sylius 3.0.',
+                RepositoryInterface::class,
+                $argumentName,
+                GeographicalFixture::class,
+            ));
+        }
+
+        new GeographicalFixture(
+            $this->createStub(FactoryInterface::class),
+            $this->createStub(ObjectManager::class),
+            $this->createStub(FactoryInterface::class),
+            $this->createStub(ObjectManager::class),
+            $this->createStub(ZoneFactoryInterface::class),
+            $this->createStub(ObjectManager::class),
+        );
+    }
+
     protected function getConfiguration(): GeographicalFixture
     {
         return new GeographicalFixture(
@@ -162,6 +187,9 @@ final class GeographicalFixtureTest extends TestCase
             $this->getMockBuilder(ObjectManager::class)->getMock(),
             $this->getMockBuilder(ZoneFactoryInterface::class)->getMock(),
             $this->getMockBuilder(ObjectManager::class)->getMock(),
+            $this->getMockBuilder(RepositoryInterface::class)->getMock(),
+            $this->getMockBuilder(RepositoryInterface::class)->getMock(),
+            $this->getMockBuilder(RepositoryInterface::class)->getMock(),
         );
     }
 }

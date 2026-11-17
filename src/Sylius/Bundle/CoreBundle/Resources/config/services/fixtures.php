@@ -70,6 +70,9 @@ return static function (ContainerConfigurator $container) {
             service('sylius.manager.province'),
             service('sylius.factory.zone'),
             service('sylius.manager.zone'),
+            service('sylius.repository.country'),
+            service('sylius.repository.province'),
+            service('sylius.repository.zone'),
         ])
         ->tag('sylius_fixtures.fixture')
     ;

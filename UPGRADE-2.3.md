@@ -13,6 +13,35 @@ The following methods have been deprecated and will be removed together with the
 
 `Sylius\Component\Core\Model\PromotionInterface` and `Sylius\Component\Core\Model\PromotionCouponInterface` will no longer extend `Sylius\Resource\Model\VersionedInterface` in Sylius 3.0.
 
+## Fixtures
+
+The `geographical` fixture can now be used more than once, in one suite or in suites loaded one after another
+([#11216](https://github.com/Sylius/Sylius/issues/11216)). Countries that already exist in the database are reused
+instead of being created again and keep their enabled state, provinces that a country already has are skipped, and
+zone members (countries, provinces and zones) may refer to ones that are already in the database. A zone whose code
+already exists is still created again and fails, as before.
+
+**Changes in `Sylius\Bundle\CoreBundle\Fixture\GeographicalFixture`:**
+
+```diff
+ public function __construct(
+     private FactoryInterface $countryFactory,
+     private ObjectManager $countryManager,
+     private FactoryInterface $provinceFactory,
+     private ObjectManager $provinceManager,
+     private ZoneFactoryInterface $zoneFactory,
+     private ObjectManager $zoneManager,
++    private ?RepositoryInterface $countryRepository = null,
++    private ?RepositoryInterface $provinceRepository = null,
++    private ?RepositoryInterface $zoneRepository = null,
+ )
+```
+
+The `sylius.fixture.geographical` service now passes `sylius.repository.country`, `sylius.repository.province` and
+`sylius.repository.zone` as the last arguments. Not passing them to `GeographicalFixture` is deprecated since
+Sylius 2.3, and they will be required in Sylius 3.0. If you have overwritten that service or its arguments, add them.
+Until you do, the fixture keeps its previous behaviour: it does not look up countries or zone members in the database.
+
 # UPGRADE FROM `2.3.1` TO `2.3.2`
 
 This is a **security release**. Updating is strongly recommended.
